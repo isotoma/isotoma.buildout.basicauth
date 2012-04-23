@@ -35,7 +35,7 @@ class Credentials(object):
 
         return required
 
-    def get_credentials(self):
+    def get_credentials(self, ignore_missing=True):
         """Iterate across all of the available fetchers until we acquire all of
         the credentials we require"""
 
