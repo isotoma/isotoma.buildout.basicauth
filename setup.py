@@ -22,6 +22,7 @@ setup(
         'setuptools',
         'missingbits',
         'zc.buildout',
+        'keyring',
     ],
     entry_points='''
     [zc.buildout.extension]

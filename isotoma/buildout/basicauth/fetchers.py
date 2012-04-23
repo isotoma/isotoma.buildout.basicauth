@@ -1,4 +1,9 @@
 import os
+import logging
+
+import keyring
+
+logger = logging.getLogger(__name__)
 
 class Fetcher(object):
     """
@@ -17,12 +22,16 @@ class Fetcher(object):
     then return as many credentials as it could.
     """
 
-    def __init__(self, value, uri, **kwargs):
+    def __init__(self, value, uri, interactive, **kwargs):
         self.uri = uri
         self.value = value
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
         self._realm = kwargs.get('realm')
+
+    def success(self, username, password, realm):
+        """A method run after successful credential entry"""
+        return
 
     @property
     def username(self):
@@ -91,3 +100,39 @@ class PyPiRCFetcher(Fetcher):
                 config['repository'] = repo
 
         return config
+
+
+class KeyringFetcher(Fetcher):
+    """
+    Uses python-keyring to securely fetch passwords from your keyring, if they
+    exist. Degrades gracefully if the specified keyring doesn't exist.
+    """
+
+    SERVICE = 'isotoma.buildout.basicauth'
+    SEP = ':|'
+
+    def __init__(self, value, uri, interactive, **kwargs):
+        super(KeyringFetcher, self).__init__(value, uri, interactive, **kwargs)
+        self._configure_keyring()
+        self._parse_credentials()
+
+    def success(self, username, password, realm):
+        if getattr(self, '_no_keyring', False):
+            return
+
+        pw = self.SEP.join((username, password, realm))
+        try:
+            keyring.set_password(self.SERVICE, self.uri, pw)
+        except keyring.backend.PasswordSetError:
+            logger.warning('Could not set password in keyring %s' % self.value)
+
+    def _parse_credentials(self):
+        pw = keyring.get_password(self.SERVICE, self.uri)
+        if pw:
+            self._username, self._password, self._realm = pw.split(self.SEP)
+        else:
+            logger.warning('No password for %s in keyring %s' % (self.uri, self.value))
+
+    def _configure_keyring(self):
+        backend = keyring.core.load_keyring(None, 'keyring.backend.%s' % self.value)
+        keyring.set_keyring(backend)
