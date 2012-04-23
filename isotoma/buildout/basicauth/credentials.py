@@ -1,4 +1,8 @@
+import logging
+
 from isotoma.buildout.basicauth.fetchers import PyPiRCFetcher
+
+logger = logging.getLogger(__name__)
 
 class Credentials(object):
     """
@@ -52,13 +56,16 @@ class Credentials(object):
         the credentials we require"""
 
         for fetcher, value in self._fetch_using.items():
-            f = self.AVAILABLE_FETCHERS[fetcher](
-                value,
-                self.uri,
-                username=self.username,
-                password=self.password,
-                realm=self.realm,
-            )
+            try:
+                f = self.AVAILABLE_FETCHERS[fetcher](
+                    value,
+                    self.uri,
+                    username=self.username,
+                    password=self.password,
+                    realm=self.realm,
+                )
+            except KeyError, e:
+                logger.warning('No credential fetcher for key "%s".' % e.args[0])
 
             for credential in self.required_credentials():
                 setattr(self, '_%s' % credential, getattr(f, credential))
