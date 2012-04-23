@@ -50,8 +50,8 @@ class PyPiRCFetcher(Fetcher):
 
     PYPIRC_LOC = '~/.pypirc'
 
-    def __init__(self, value, uri, **kwargs):
-        super(PyPiRCFetcher, self).__init__(value, uri, **kwargs)
+    def __init__(self, value, uri, interactive, **kwargs):
+        super(PyPiRCFetcher, self).__init__(value, uri, interactive, **kwargs)
         self.pypirc_loc = os.path.expanduser(
             kwargs.get('pypirc_loc', self.PYPIRC_LOC)
         )

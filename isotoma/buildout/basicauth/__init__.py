@@ -9,6 +9,7 @@ We expect a config as follows::
     credentials =
         pypi
         github
+    interactive = yes
 
     [pypi]
     uri = https://example.com/
@@ -17,7 +18,6 @@ We expect a config as follows::
     [github]
     uri = https://raw.github.com/
     realm = github
-    prompt = yes
 
 In your basicauth part you define each of the credentials parts.
 
@@ -27,6 +27,9 @@ the other credentials details.
 
 These credential-fetching methods will be tried in order, until all of the
 required credentials have been fetched.
+
+The "interactive" option determines whether or not fetcher methods can prompt
+the user for input.
 """
 
 import os
@@ -38,6 +41,9 @@ import missingbits
 
 def _retrieve_credentials(buildout):
     basicauth = buildout.get('basicauth')
+
+    basicauth.setdefault('interactive', 'yes')
+    interactive = basicauth.get_bool('interactive')
 
     if basicauth:
         credentials_parts = basicauth.get_list('credentials')
@@ -62,6 +68,7 @@ def _retrieve_credentials(buildout):
             password=stanza.get('password'),
             realm=stanza.get('realm'),
             fetch_using=fetch_methods,
+            interactive=interactive,
         ).get_credentials()
 
     return credentials
@@ -69,5 +76,3 @@ def _retrieve_credentials(buildout):
 def install(buildout=None):
     credentials = _retrieve_credentials(buildout)
     print >>sys.stderr,  credentials
-
-

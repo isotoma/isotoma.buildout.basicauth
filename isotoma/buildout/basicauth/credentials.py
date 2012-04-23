@@ -15,14 +15,16 @@ class Credentials(object):
 
     AVAILABLE_FETCHERS = {
         'use-pypirc': PyPiRCFetcher,
+        'keyring': KeyringFetcher,
     }
 
-    def __init__(self, uri, fetch_using=[], **kwargs):
+    def __init__(self, uri, interactive=False, fetch_using=[], **kwargs):
         self._uri = uri
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
         self._realm = kwargs.get('realm')
         self._fetch_using = fetch_using
+        self._interactive = interactive
 
     def required_credentials(self):
         required = []
@@ -41,6 +43,8 @@ class Credentials(object):
     def get_credentials(self, ignore_missing=True):
         """Iterate across all of the available fetchers until we acquire all of
         the credentials we require"""
+
+        self.exhausted_fetchers = []
 
         for fetcher, value in self._fetch_using.items():
             try:
