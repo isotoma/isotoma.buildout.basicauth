@@ -1,9 +1,13 @@
-from isotoma.buildout.basicauth.fetchers import PyPiFetcher
+from isotoma.buildout.basicauth.fetchers import PyPiRCFetcher
 
 class Credentials(object):
+    """
+    A class to instantiate then iterate over `Fetcher`s to acquire a full set
+    of credentials for a particular URI.
+    """
 
     AVAILABLE_FETCHERS = {
-        'use-pypirc': PyPiFetcher,
+        'use-pypirc': PyPiRCFetcher,
     }
 
     def __init__(self, uri, fetch_using=[], **kwargs):

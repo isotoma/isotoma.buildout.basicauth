@@ -36,7 +36,7 @@ class Fetcher(object):
     def realm(self):
         return self._realm
 
-class PyPiFetcher(Fetcher):
+class PyPiRCFetcher(Fetcher):
     """Pull whatever credentials might be available out of the running user's
     pypirc config file. If an index_server argument is passed and the python
     version and packages support individual repositories, this class will fetch
