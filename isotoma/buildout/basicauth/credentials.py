@@ -21,22 +21,6 @@ class Credentials(object):
         self._realm = kwargs.get('realm')
         self._fetch_using = fetch_using
 
-    @property
-    def username(self):
-        return self._username
-
-    @property
-    def password(self):
-        return self._password
-
-    @property
-    def realm(self):
-        return self._realm
-
-    @property
-    def uri(self):
-        return self._uri
-
     def required_credentials(self):
         required = []
 
@@ -59,15 +43,18 @@ class Credentials(object):
             try:
                 f = self.AVAILABLE_FETCHERS[fetcher](
                     value,
-                    self.uri,
-                    username=self.username,
-                    password=self.password,
-                    realm=self.realm,
+                    self._uri,
+                    username=self._username,
+                    password=self._password,
+                    realm=self._realm,
                 )
             except KeyError, e:
-                logger.warning('No credential fetcher for key "%s".' % e.args[0])
+                if ignore_missing:
+                    logger.warning('No credential fetcher for key "%s".' % e.args[0])
+                else:
+                    raise
 
             for credential in self.required_credentials():
                 setattr(self, '_%s' % credential, getattr(f, credential))
 
-        return (self.username, self.password, self.realm, self.uri)
+        return (self._username, self._password, self._realm, self._uri)
