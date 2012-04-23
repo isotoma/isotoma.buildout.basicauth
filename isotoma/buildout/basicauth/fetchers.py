@@ -36,18 +36,13 @@ class Fetcher(object):
     def realm(self):
         return self._realm
 
+
 class PyPiRCFetcher(Fetcher):
-    """Pull whatever credentials might be available out of the running user's
-    pypirc config file. If an index_server argument is passed and the python
-    version and packages support individual repositories, this class will fetch
-    the credentials for the specified repository (falling back to
-    "server-login")
-    """
 
     PYPIRC_LOC = '~/.pypirc'
 
     def __init__(self, value, uri, **kwargs):
-        super(PyPiFetcher, self).__init__(value, uri, **kwargs)
+        super(PyPiRCFetcher, self).__init__(value, uri, **kwargs)
         self.pypirc_loc = os.path.expanduser(
             kwargs.get('pypirc_loc', self.PYPIRC_LOC)
         )
@@ -55,18 +50,15 @@ class PyPiRCFetcher(Fetcher):
 
     @property
     def username(self):
-        if not self._username:
-            return self._config.get('username', self._username)
+        return self._username or self._config.get('username')
 
     @property
     def password(self):
-        if not self._password:
-            return self._config.get('password', self._password)
+        return self._password or self._config.get('password')
 
     @property
     def realm(self):
-        if not self._realm:
-            return self._config.get('realm', self._realm)
+        return self._realm or self._config.get('realm')
 
     def get_pypirc_credentials(self):
         """Acquire credentials from the user's pypirc file"""
