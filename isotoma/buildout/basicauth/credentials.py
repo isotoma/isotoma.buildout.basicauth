@@ -19,7 +19,7 @@ class Credentials(object):
     }
 
     def __init__(self, uri, interactive=False, fetch_using=[], **kwargs):
-        self._uri = uri
+        self.uri = uri
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
         self._realm = kwargs.get('realm')
@@ -50,7 +50,7 @@ class Credentials(object):
             try:
                 f = self.AVAILABLE_FETCHERS[fetcher](
                     value,
-                    self._uri,
+                    self.uri,
                     username=self._username,
                     password=self._password,
                     realm=self._realm,
@@ -67,7 +67,7 @@ class Credentials(object):
                 else:
                     raise
 
-        return (self._username, self._password, self._realm, self._uri)
+        return (self._username, self._password, self._realm, self.uri)
 
     def success(self):
         for f in self.exhausted_fetchers:

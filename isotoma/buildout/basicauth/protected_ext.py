@@ -1,6 +1,6 @@
 import os
 
-def _load_protected_extensions(buildout=None):
+def load_protected_extensions(buildout=None):
     """
     Because all of the extensions are loaded prior to any of them being
     applied, we have added a protected-extensions option::

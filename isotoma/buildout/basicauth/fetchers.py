@@ -56,6 +56,7 @@ class PyPiRCFetcher(Fetcher):
             kwargs.get('pypirc_loc', self.PYPIRC_LOC)
         )
         self._config = self.get_pypirc_credentials()
+        logger.critical(self._config)
 
     @property
     def username(self):

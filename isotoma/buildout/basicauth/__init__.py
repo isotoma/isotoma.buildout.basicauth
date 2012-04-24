@@ -35,9 +35,15 @@ the user for input.
 import os
 import sys
 
-from isotoma.buildout.basicauth.credentials import Credentials
-from isotoma.buildout.basicauth.protected_ext import _load_protected_extensions
 import missingbits
+
+from isotoma.buildout.basicauth.credentials import Credentials
+from isotoma.buildout.basicauth.protected_ext import load_protected_extensions
+from isotoma.buildout.basicauth.download import (
+    CredentialManager,
+    add_urllib2_handler,
+    patch_buildout_download,
+)
 
 def _retrieve_credentials(buildout):
     basicauth = buildout.get('basicauth')
@@ -50,7 +56,7 @@ def _retrieve_credentials(buildout):
     else: # Legacy mode
         credentials_parts = []
 
-    credentials = {}
+    credentials = []
 
     for c in credentials_parts:
         exclude = ('uri', 'username', 'password', 'realm')
@@ -62,17 +68,28 @@ def _retrieve_credentials(buildout):
             if not key in exclude:
                 fetch_methods[key] = value
 
-        credentials[c] = Credentials(
+        credentials.append(Credentials(
             uri=uri,
             username=stanza.get('username'),
             password=stanza.get('password'),
             realm=stanza.get('realm'),
             fetch_using=fetch_methods,
             interactive=interactive,
-        ).get_credentials()
+        ))
 
     return credentials
 
-def install(buildout=None):
+def install(buildout):
+    """Install the basicauth extension"""
+
+    # urllib2
     credentials = _retrieve_credentials(buildout)
-    print >>sys.stderr,  credentials
+    manager = CredentialManager()
+    manager.add_passwords(credentials)
+    add_urllib2_handler(manager)
+
+    # zc.buildout.download
+    patch_buildout_download(*credentials)
+
+    # Now load any protected-extensions using over basicauth
+    load_protected_extensions(buildout)
