@@ -35,15 +35,12 @@ the user for input.
 import os
 import sys
 
-import missingbits
+from setuptools import package_index
 
+import missingbits
 from isotoma.buildout.basicauth.credentials import Credentials
 from isotoma.buildout.basicauth.protected_ext import load_protected_extensions
-from isotoma.buildout.basicauth.download import (
-    CredentialManager,
-    add_urllib2_handler,
-    patch_buildout_download,
-)
+from isotoma.buildout.basicauth.download import inject_credentials
 
 def _retrieve_credentials(buildout):
     basicauth = buildout.get('basicauth')
@@ -82,14 +79,7 @@ def _retrieve_credentials(buildout):
 def install(buildout):
     """Install the basicauth extension"""
 
-    # urllib2
     credentials = _retrieve_credentials(buildout)
-    manager = CredentialManager()
-    manager.add_passwords(credentials)
-    add_urllib2_handler(manager)
 
-    # zc.buildout.download
-    patch_buildout_download(*credentials)
-
-    # Now load any protected-extensions using over basicauth
-    load_protected_extensions(buildout)
+    # Monkeypatch distutils
+    package_index.open_with_auth = inject_credentials(credentials)(package_index.open_with_auth)
