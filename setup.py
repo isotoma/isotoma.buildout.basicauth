@@ -19,6 +19,7 @@ setup(
     include_package_data=True,
     namespace_packages=['isotoma', 'isotoma.buildout'],
     install_requires=[
+        'httplib2',
         'setuptools',
         'missingbits',
         'zc.buildout',
