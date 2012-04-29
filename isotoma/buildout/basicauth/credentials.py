@@ -67,7 +67,7 @@ class Credentials(object):
                 else:
                     raise
 
-        return (self._username, self._password, self._realm, self.uri)
+        yield (self._username, self._password, self._realm, self.uri)
 
     def success(self):
         for f in self.exhausted_fetchers:
