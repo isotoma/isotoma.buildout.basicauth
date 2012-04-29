@@ -27,9 +27,8 @@ class Fetcher(object):
         self.value = value
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
-        self._realm = kwargs.get('realm')
 
-    def success(self, username, password, realm):
+    def success(self, username, password):
         """A method run after successful credential entry"""
         return
 
@@ -40,11 +39,6 @@ class Fetcher(object):
     @property
     def password(self):
         return self._password
-
-    @property
-    def realm(self):
-        return self._realm
-
 
 class PyPiRCFetcher(Fetcher):
 
@@ -64,10 +58,6 @@ class PyPiRCFetcher(Fetcher):
     @property
     def password(self):
         return self._password or self._config.get('password')
-
-    @property
-    def realm(self):
-        return self._realm or self._config.get('realm')
 
     def get_pypirc_credentials(self):
         """Acquire credentials from the user's pypirc file"""
@@ -116,11 +106,11 @@ class KeyringFetcher(Fetcher):
         self._configure_keyring()
         self._parse_credentials()
 
-    def success(self, username, password, realm):
+    def success(self, username, password):
         if getattr(self, '_no_keyring', False):
             return
 
-        pw = self.SEP.join((username, password, realm))
+        pw = self.SEP.join((username, password))
         try:
             keyring.set_password(self.SERVICE, self.uri, pw)
         except keyring.backend.PasswordSetError:
@@ -129,7 +119,7 @@ class KeyringFetcher(Fetcher):
     def _parse_credentials(self):
         pw = keyring.get_password(self.SERVICE, self.uri)
         if pw:
-            self._username, self._password, self._realm = pw.split(self.SEP)
+            self._username, self._password = pw.split(self.SEP)
         else:
             logger.warning('No password for %s in keyring %s' % (self.uri, self.value))
 

@@ -62,6 +62,9 @@ def inject_credentials(credentials):
                         logger.critical('Credentials for %s failed.' % url)
                     else:
                         logger.critical('Cannot fetch %s (%r)' % (url, code))
+                else:
+                    # On success, stop trying
+                    break
 
             # If we still haven't managed to return a value, re-raise
             if e: raise e

@@ -17,7 +17,6 @@ We expect a config as follows::
 
     [github]
     uri = https://raw.github.com/
-    realm = github
 
 In your basicauth part you define each of the credentials parts.
 
@@ -56,7 +55,7 @@ def _retrieve_credentials(buildout):
     credentials = []
 
     for c in credentials_parts:
-        exclude = ('uri', 'username', 'password', 'realm')
+        exclude = ('uri', 'username', 'password')
         stanza = buildout.get(c)
         uri = stanza.get('uri')
 
@@ -69,7 +68,6 @@ def _retrieve_credentials(buildout):
             uri=uri,
             username=stanza.get('username'),
             password=stanza.get('password'),
-            realm=stanza.get('realm'),
             fetch_using=fetch_methods,
             interactive=interactive,
         ))
