@@ -53,8 +53,8 @@ def _retrieve_credentials(buildout):
     interactive = basicauth.get_bool('interactive')
 
     basicauth.setdefault('fetch-order', '''\
-        prompt
         use-pypirc
+        prompt
     ''')
     fetch_order = basicauth.get_list('fetch-order')
 
