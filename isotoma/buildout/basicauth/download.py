@@ -30,12 +30,12 @@ def _inject_credentials(url, username=None, password=None):
     if username and password:
         scheme, netloc, path, params, query, frag = urlparse.urlparse(url)
         if scheme in ('http', 'https'):
-            auth, host = urllib2.splituser(netloc)
-            if not auth: # If the URL doesn't have credentials in it already
+            auth_part, host_part = urllib2.splituser(netloc)
+            if not auth_part: # If the URL doesn't have credentials in it already
                 netloc = '%s:%s@%s' % (
                     urllib.quote(username),
                     urllib.quote(password),
-                    host,
+                    host_part,
                 )
                 url = urlparse.urlunparse((scheme,netloc,path,params,query,frag))
     return url
@@ -48,27 +48,30 @@ def inject_credentials(credentials):
         def wrapper(url):
             logger.debug('Downloading URL %s' % url)
             credential = credential_for_url(url, credentials)
+
             if not credential:
                 return auth_func(url)
 
             e = None
             for cred_tuple in credential.get_credentials():
                 e = None
+
                 try:
                     new_url = _inject_credentials(
                         url, cred_tuple.username, cred_tuple.password
                     )
-                    return auth_func(new_url)
+
+                    res = auth_func(new_url)
                 except Exception, e:
                     code = getattr(e, 'code', 'unknown')
-                    if code == 401:
+                    if code in (401, 403):
                         logger.critical('Credentials for %s failed.' % url)
                     else:
                         logger.critical('Cannot fetch %s (%r)' % (url, code))
-                finally:
-                    if not e:
-                        credential.success()
-                        break
+                else:
+                    logger.debug("Credential was succesful")
+                    credential.success()
+                    return res
 
             # If we still haven't managed to return a value, re-raise
             if e: raise e
