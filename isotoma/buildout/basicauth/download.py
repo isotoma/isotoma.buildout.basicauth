@@ -46,15 +46,18 @@ def inject_credentials(credentials):
 
     def decorator(auth_func):
         def wrapper(url):
-            logger.info('Fetching URL %s' % url)
+            logger.debug('Downloading URL %s' % url)
             credential = credential_for_url(url, credentials)
             if not credential:
-                logger.debug('No credentials for URL %s' % url)
                 return auth_func(url)
 
+            e = None
             for cred_tuple in credential.get_credentials():
+                e = None
                 try:
-                    new_url = _inject_credentials(url, cred_tuple[0], cred_tuple[1])
+                    new_url = _inject_credentials(
+                        url, cred_tuple.username, cred_tuple.password
+                    )
                     return auth_func(new_url)
                 except Exception, e:
                     code = getattr(e, 'code', 'unknown')
@@ -62,9 +65,10 @@ def inject_credentials(credentials):
                         logger.critical('Credentials for %s failed.' % url)
                     else:
                         logger.critical('Cannot fetch %s (%r)' % (url, code))
-                else:
-                    # On success, stop trying
-                    break
+                finally:
+                    if not e:
+                        credential.success()
+                        break
 
             # If we still haven't managed to return a value, re-raise
             if e: raise e

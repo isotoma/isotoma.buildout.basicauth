@@ -1,9 +1,16 @@
 import os
 import logging
+import getpass
+import collections
+import urlparse
 
 import keyring
 
 logger = logging.getLogger(__name__)
+
+CredentialTuple = collections.namedtuple(
+    'CredentialTuple', ['username', 'password']
+)
 
 class Fetcher(object):
     """
@@ -25,6 +32,8 @@ class Fetcher(object):
     def __init__(self, value, uri, interactive, **kwargs):
         self.uri = uri
         self.value = value
+        self.interactive = interactive
+        self.max_tries = 1
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
 
@@ -32,13 +41,29 @@ class Fetcher(object):
         """A method run after successful credential entry"""
         return
 
-    @property
-    def username(self):
-        return self._username
+    def credentials(self):
+        for i in range(self.max_tries):
+            yield CredentialTuple(username=self._username, password=self._password)
 
-    @property
-    def password(self):
-        return self._password
+class PromptFetcher(Fetcher):
+
+    def __init__(self, value, uri, interactive, **kwargs):
+        super(PromptFetcher, self).__init__(value, uri, interactive, **kwargs)
+        self._cache = None
+        self._tried_cache = False
+        self.max_tries = 5
+
+    def credentials(self):
+        for i in range(self.max_tries):
+            username, password = None, None
+            if not self._tried_cache and self._cache:
+                username, password = self._cache
+                self._tried_cache = True
+            if not (username and password):
+                username = raw_input('Username for %s: ' % self.uri)
+                password = getpass.getpass('Password for %s: ' % self.uri)
+            yield CredentialTuple(username, password)
+
 
 class PyPiRCFetcher(Fetcher):
 
@@ -49,17 +74,26 @@ class PyPiRCFetcher(Fetcher):
         self.pypirc_loc = os.path.expanduser(
             kwargs.get('pypirc_loc', self.PYPIRC_LOC)
         )
-        self._config = self.get_pypirc_credentials()
+        self._successful_config = None
 
-    @property
-    def username(self):
-        return self._username or self._config.get('username')
+    def credentials(self):
+        if self._successful_config:
+            yield self._successful_config
 
-    @property
-    def password(self):
-        return self._password or self._config.get('password')
+        config = self._get_pypirc_credentials()
+        netloc = lambda url: urlparse.urlparse(url)[1]
+        if netloc(config.get('repository')) == netloc(self.uri):
+            self._creds = CredentialTuple(
+                config.get('username'), config.get('password')
+            )
+            if self._creds.username and self._creds.password:
+                yield self._creds
 
-    def get_pypirc_credentials(self):
+    def success(self, username, password):
+        if hasattr(self, '_creds'):
+            self._successful_config = self._creds
+
+    def _get_pypirc_credentials(self):
         """Acquire credentials from the user's pypirc file"""
         try:
             from distutils.dist import Distribution
