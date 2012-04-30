@@ -55,6 +55,7 @@ def inject_credentials(credentials):
                     logger.critical('Could not authenticate %s. (%d)' % (url_e, code))
                 else:
                     logger.critical('Cannot fetch %s (%r)' % (url_e, code))
+                    logger.debug(e)
 
 
             if not credential:

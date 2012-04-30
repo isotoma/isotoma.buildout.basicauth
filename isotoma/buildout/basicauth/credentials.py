@@ -1,6 +1,7 @@
 import logging
 
 from isotoma.buildout.basicauth.fetchers import (
+    Fetcher,
     PyPiRCFetcher,
     KeyringFetcher,
     PromptFetcher,
@@ -15,6 +16,7 @@ class Credentials(object):
     """
 
     AVAILABLE_FETCHERS = {
+        'raw': Fetcher,
         'use-pypirc': PyPiRCFetcher,
         'prompt': PromptFetcher,
     #    'keyring': KeyringFetcher,

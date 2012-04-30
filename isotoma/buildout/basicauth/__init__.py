@@ -24,6 +24,7 @@ def _retrieve_credentials(buildout):
     interactive = basicauth.get_bool('interactive')
 
     basicauth.setdefault('fetch-order', '''\
+        raw
         use-pypirc
         prompt
     ''')
@@ -44,6 +45,10 @@ def _retrieve_credentials(buildout):
         uri = stanza.get('uri')
 
         fetch_methods = {}
+
+        if basicauth.get('username') and basicauth.get('password'):
+            fetch_methods.update({'raw': 'yes'})
+
         for key, value in stanza.iteritems():
             if not key in exclude:
                 fetch_methods[key] = value
@@ -61,11 +66,10 @@ def _retrieve_credentials(buildout):
 
 def install(buildout):
     """Install the basicauth extension"""
-
     credentials = _retrieve_credentials(buildout)
 
-    logger.info('Monkeypatching distribute to add http auth support')
     # Monkeypatch distribute
+    logger.info('Monkeypatching distribute to add http auth support')
     package_index.open_with_auth = inject_credentials(credentials)(package_index.open_with_auth)
 
     # Load the buildout:protected-extensions now that we have basicauth

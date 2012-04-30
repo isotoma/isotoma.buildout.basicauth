@@ -17,6 +17,8 @@ We expect a config as follows::
 
     [github]
     uri = https://raw.github.com/
+    username = user
+    password = chunky
 
 In your basicauth part you define each of the credentials parts.
 
