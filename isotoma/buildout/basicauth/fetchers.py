@@ -54,6 +54,8 @@ class PromptFetcher(Fetcher):
         self.max_tries = 5
 
     def credentials(self):
+        if not self.interactive or self.value != 'yes':
+            raise StopIteration()
         for i in range(self.max_tries):
             username, password = None, None
             if not self._tried_cache and self._cache:
