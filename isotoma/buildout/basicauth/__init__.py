@@ -93,5 +93,9 @@ def install(buildout):
 
     credentials = _retrieve_credentials(buildout)
 
-    # Monkeypatch distutils
+    logger.info('Monkeypatching distribute to add http auth support')
+    # Monkeypatch distribute
     package_index.open_with_auth = inject_credentials(credentials)(package_index.open_with_auth)
+
+    # Load the buildout:protected-extensions now that we have basicauth
+    load_protected_extensions(buildout)

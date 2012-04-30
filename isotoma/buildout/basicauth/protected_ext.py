@@ -1,4 +1,6 @@
 import os
+import pkg_resources
+from zc.buildout import easy_install
 
 def load_protected_extensions(buildout=None):
     """
