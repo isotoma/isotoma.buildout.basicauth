@@ -19,6 +19,7 @@ logger = logging.getLogger('isotoma.buildout.basicauth')
 def _retrieve_credentials(buildout):
     basicauth = buildout.get('basicauth')
 
+    # Interactive mode by default
     basicauth.setdefault('interactive', 'yes')
     interactive = basicauth.get_bool('interactive')
 
