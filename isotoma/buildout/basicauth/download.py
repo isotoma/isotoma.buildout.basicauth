@@ -49,13 +49,25 @@ def inject_credentials(credentials):
             logger.debug('Downloading URL %s' % url)
             credential = credential_for_url(url, credentials)
 
+            def log_exception(exc, url_e):
+                code = getattr(exc, 'code', 'unknown')
+                if code in (401, 403):
+                    logger.critical('Could not authenticate %s. (%d)' % (url_e, code))
+                else:
+                    logger.critical('Cannot fetch %s (%r)' % (url_e, code))
+
+
             if not credential:
-                return auth_func(url)
+                logger.debug('No credentials for %s' % url)
+                try:
+                    return auth_func(url)
+                except Exception, e:
+                    log_exception(e, url)
+                    raise
 
             e = None
             for cred_tuple in credential.get_credentials():
                 e = None
-
                 try:
                     new_url = _inject_credentials(
                         url, cred_tuple.username, cred_tuple.password
@@ -63,18 +75,21 @@ def inject_credentials(credentials):
 
                     res = auth_func(new_url)
                 except Exception, e:
-                    code = getattr(e, 'code', 'unknown')
-                    if code in (401, 403):
-                        logger.critical('Credentials for %s failed.' % url)
-                    else:
-                        logger.critical('Cannot fetch %s (%r)' % (url, code))
+                    log_exception(e, url)
                 else:
                     logger.debug("Credential was succesful")
                     credential.success()
                     return res
 
             # If we still haven't managed to return a value, re-raise
-            if e: raise e
+            if e:
+                raise e
+            else:
+                try:
+                    return auth_func(url)
+                except Exception, e:
+                    log_exception(e, url)
+                    raise
 
         return wrapper
     return decorator
