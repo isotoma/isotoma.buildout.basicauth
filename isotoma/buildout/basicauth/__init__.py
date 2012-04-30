@@ -33,19 +33,30 @@ the user for input.
 
 import os
 import sys
+import logging
 
 from setuptools import package_index
+
+from zc.buildout import UserError
 
 import missingbits
 from isotoma.buildout.basicauth.credentials import Credentials
 from isotoma.buildout.basicauth.protected_ext import load_protected_extensions
 from isotoma.buildout.basicauth.download import inject_credentials
 
+logger = logging.getLogger('isotoma.buildout.basicauth')
+
 def _retrieve_credentials(buildout):
     basicauth = buildout.get('basicauth')
 
     basicauth.setdefault('interactive', 'yes')
     interactive = basicauth.get_bool('interactive')
+
+    basicauth.setdefault('fetch-order', '''\
+        prompt
+        use-pypirc
+    ''')
+    fetch_order = basicauth.get_list('fetch-order')
 
     if basicauth:
         credentials_parts = basicauth.get_list('credentials')
@@ -57,6 +68,8 @@ def _retrieve_credentials(buildout):
     for c in credentials_parts:
         exclude = ('uri', 'username', 'password')
         stanza = buildout.get(c)
+        if not stanza:
+            raise UserError('basicauth part refers to nonexistent "%s" part' % c)
         uri = stanza.get('uri')
 
         fetch_methods = {}
@@ -69,6 +82,7 @@ def _retrieve_credentials(buildout):
             username=stanza.get('username'),
             password=stanza.get('password'),
             fetch_using=fetch_methods,
+            fetch_order=fetch_order,
             interactive=interactive,
         ))
 

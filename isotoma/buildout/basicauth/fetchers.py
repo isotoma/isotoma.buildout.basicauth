@@ -81,13 +81,14 @@ class PyPiRCFetcher(Fetcher):
             yield self._successful_config
 
         config = self._get_pypirc_credentials()
-        netloc = lambda url: urlparse.urlparse(url)[1]
-        if netloc(config.get('repository')) == netloc(self.uri):
-            self._creds = CredentialTuple(
-                config.get('username'), config.get('password')
-            )
-            if self._creds.username and self._creds.password:
-                yield self._creds
+        if config.has_key('repository'):
+            netloc = lambda url: urlparse.urlparse(url)[1]
+            if netloc(config.get('repository')) == netloc(self.uri):
+                self._creds = CredentialTuple(
+                    config.get('username'), config.get('password')
+                )
+                if self._creds.username and self._creds.password:
+                    yield self._creds
 
     def success(self, username, password):
         if hasattr(self, '_creds'):

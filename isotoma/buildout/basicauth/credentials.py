@@ -16,15 +16,16 @@ class Credentials(object):
 
     AVAILABLE_FETCHERS = {
         'use-pypirc': PyPiRCFetcher,
-    #    'keyring': KeyringFetcher,
         'prompt': PromptFetcher,
+    #    'keyring': KeyringFetcher,
     }
 
-    def __init__(self, uri, interactive=False, fetch_using=[], **kwargs):
+    def __init__(self, uri, interactive=False, fetch_using={}, fetch_order=[], **kwargs):
         self.uri = uri
         self._username = kwargs.get('username')
         self._password = kwargs.get('password')
         self._fetch_using = fetch_using
+        self._fetch_order = fetch_order
         self._interactive = interactive
         self._fetchers = []
         self._successful_creds = None
@@ -66,10 +67,22 @@ class Credentials(object):
             yield (self._username, self._password, self.uri)
 
         fetch_iters = []
-        for fetcher_name, parameter in self._fetch_using.items():
-            f = self.find_or_create(fetcher_name, parameter, ignore_missing)
-            if f:
-                fetch_iters.append(f.credentials())
+
+        # Add fetchers using the explicit ordering
+        for fetcher_name in self._fetch_order:
+            if fetcher_name in self._fetch_using.keys():
+                parameter = self._fetch_using[fetcher_name]
+                f = self.find_or_create(fetcher_name, parameter, ignore_missing)
+                if f:
+                    fetch_iters.append(f.credentials())
+
+        # Add the rest afterwards
+        for fetcher_name in self._fetch_using.keys():
+            if not fetcher_name in self._fetch_order:
+                parameter = self._fetch_using[fetcher_name]
+                f = self.find_or_create(fetcher_name, parameter, ignore_missing)
+                if f:
+                    fetch_iters.append(f.credentials())
 
         next_iters = fetch_iters
 
