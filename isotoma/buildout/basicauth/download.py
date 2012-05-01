@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 from zc.buildout import download
 
 def strip_auth(url):
+    """Strip the authentication parameters from a URL for logging"""
     scheme, netloc, path, params, query, frag = urlparse.urlparse(url)
     if scheme in ('http', 'https'):
         auth, host = urllib2.splituser(netloc)
@@ -31,6 +32,10 @@ def credential_for_url(url, credentials):
             return credential
 
 def call_auth_function(auth_function, url, credentials, *args):
+    """Call the auth_function with the url and *args and, if we have any
+    credentials to apply to the url, keep calling the auth_function until it
+    either returns without exception, or we run out of credentials to use."""
+
     logger.debug('Downloading URL %s' % strip_auth(url))
     credential = credential_for_url(url, credentials)
 
@@ -82,13 +87,10 @@ def call_auth_function(auth_function, url, credentials, *args):
             log_exception(e, url)
             raise
 
-def credentials_for_retrieve(credentials):
-    def urlretrieve(url, filename=None, reporthook=None, data=None):
-        return call_auth_function(url, credentials, filename, reporthook, data)
-    return urlretrieve
-
 def _inject_credentials(url, username=None, password=None):
-    """Used by `inject_credentials` decorators to actually do the injecting"""
+    """Disassemble a url, urlencode and inject the username and password if
+    there aren't some in the url already, then reassemble and return the new
+    url."""
     if username and password:
         scheme, netloc, path, params, query, frag = urlparse.urlparse(url)
         if scheme in ('http', 'https'):
@@ -109,4 +111,12 @@ def inject_credentials(credentials):
         def wrapper(url):
             return call_auth_function(auth_func, url, credentials)
         return wrapper
+    return decorator
+
+def credentials_for_retrieve(credentials):
+    """Keep calling urllib.urlretrieve with credentials"""
+    def decorator(auth_func):
+        def urlretrieve(url, filename=None, reporthook=None, data=None):
+            return call_auth_function(urllib.urlretrieve, url, credentials, filename, reporthook, data)
+        return urlretrieve
     return decorator

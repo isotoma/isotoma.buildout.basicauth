@@ -7,12 +7,16 @@ import logging
 
 from setuptools import package_index
 
+import urllib
 from zc.buildout import UserError
 
 import missingbits
 from isotoma.buildout.basicauth.credentials import Credentials
 from isotoma.buildout.basicauth.protected_ext import load_protected_extensions
-from isotoma.buildout.basicauth.download import inject_credentials
+from isotoma.buildout.basicauth.download import (
+    inject_credentials,
+    credentials_for_retrieve,
+)
 
 logger = logging.getLogger('isotoma.buildout.basicauth')
 
@@ -67,6 +71,11 @@ def install(buildout):
     # Monkeypatch distribute
     logger.info('Monkeypatching distribute to add http auth support')
     package_index.open_with_auth = inject_credentials(credentials)(package_index.open_with_auth)
+
+    # Monkeypatch zc.buildout.download.Download.download
+    logger.info('Monkeypatching urllib.urlretrieve to add http auth support' \
+                ' to buildout recipes')
+    urllib.urlretrieve = credentials_for_retrieve(credentials)(urllib.urlretrieve)
 
     # Load the buildout:protected-extensions now that we have basicauth
     load_protected_extensions(buildout)
