@@ -1,16 +1,11 @@
 import os
 import logging
 import getpass
-import collections
 import urlparse
 
 import keyring
 
 logger = logging.getLogger(__name__)
-
-CredentialTuple = collections.namedtuple(
-    'CredentialTuple', ['username', 'password']
-)
 
 class Fetcher(object):
     """
@@ -43,7 +38,7 @@ class Fetcher(object):
 
     def credentials(self):
         for i in range(self.max_tries):
-            yield CredentialTuple(username=self._username, password=self._password)
+            yield (self._username, self._password)
 
 class PromptFetcher(Fetcher):
 
@@ -64,7 +59,7 @@ class PromptFetcher(Fetcher):
             if not (username and password):
                 username = raw_input('Username for %s: ' % self.uri)
                 password = getpass.getpass('Password for %s: ' % self.uri)
-            yield CredentialTuple(username, password)
+            yield (username, password)
 
 
 class PyPiRCFetcher(Fetcher):
@@ -86,10 +81,8 @@ class PyPiRCFetcher(Fetcher):
         if config.has_key('repository'):
             netloc = lambda url: urlparse.urlparse(url)[1]
             if netloc(config.get('repository')) == netloc(self.uri):
-                self._creds = CredentialTuple(
-                    config.get('username'), config.get('password')
-                )
-                if self._creds.username and self._creds.password:
+                self._creds = (config.get('username'), config.get('password'))
+                if self._creds[0] and self._creds[1]:
                     yield self._creds
 
     def success(self, username, password):

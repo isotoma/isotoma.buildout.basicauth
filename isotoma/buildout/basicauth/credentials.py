@@ -16,7 +16,6 @@ class Credentials(object):
     """
 
     AVAILABLE_FETCHERS = {
-        'raw': Fetcher,
         'use-pypirc': PyPiRCFetcher,
         'prompt': PromptFetcher,
     #    'keyring': KeyringFetcher,
@@ -66,7 +65,8 @@ class Credentials(object):
 
         # Allow for hard-coded credentials
         if self._username and self._password:
-            yield (self._username, self._password, self.uri)
+            self._current_creds = (self._username, self._password)
+            yield self._current_creds
 
         fetch_iters = []
 
@@ -104,5 +104,5 @@ class Credentials(object):
 
         if hasattr(self, '_current_creds'):
             for f in self._fetchers:
-                a = (self._current_creds.username, self._current_creds.password)
+                a = (self._current_creds[0], self._current_creds[1])
                 f.success(*a)

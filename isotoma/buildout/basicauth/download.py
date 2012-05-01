@@ -14,10 +14,16 @@ logger = logging.getLogger(__name__)
 
 from zc.buildout import download
 
+def strip_auth(url):
+    scheme, netloc, path, params, query, frag = urlparse.urlparse(url)
+    if scheme in ('http', 'https'):
+        auth, host = urllib2.splituser(netloc)
+        return urlparse.urlunparse((scheme,host,path,params,query,frag))
+    return url
+
 def credential_for_url(url, credentials):
     """Given a list of `Credential` objects, find the one pertaining to the
     relevant URL"""
-
     this_netloc = urlparse.urlparse(url)[1]
     for credential in credentials:
         netloc = urlparse.urlparse(credential.uri)[1]
@@ -46,7 +52,7 @@ def inject_credentials(credentials):
 
     def decorator(auth_func):
         def wrapper(url):
-            logger.debug('Downloading URL %s' % url)
+            logger.debug('Downloading URL %s' % strip_auth(url))
             credential = credential_for_url(url, credentials)
 
             def log_exception(exc, url_e):
@@ -59,7 +65,9 @@ def inject_credentials(credentials):
 
 
             if not credential:
-                logger.debug('No credentials for %s' % url)
+                stripped_auth = strip_auth(url)
+                if url == stripped_auth:
+                    logger.debug('No credentials for %s' % strip_auth(url))
                 try:
                     return auth_func(url)
                 except Exception, e:
@@ -71,7 +79,7 @@ def inject_credentials(credentials):
                 e = None
                 try:
                     new_url = _inject_credentials(
-                        url, cred_tuple.username, cred_tuple.password
+                        url, cred_tuple[0], cred_tuple[1]
                     )
 
                     res = auth_func(new_url)

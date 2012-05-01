@@ -24,7 +24,6 @@ def _retrieve_credentials(buildout):
     interactive = basicauth.get_bool('interactive')
 
     basicauth.setdefault('fetch-order', '''\
-        raw
         use-pypirc
         prompt
     ''')
@@ -45,9 +44,6 @@ def _retrieve_credentials(buildout):
         uri = stanza.get('uri')
 
         fetch_methods = {}
-
-        if basicauth.get('username') and basicauth.get('password'):
-            fetch_methods.update({'raw': 'yes'})
 
         for key, value in stanza.iteritems():
             if not key in exclude:
