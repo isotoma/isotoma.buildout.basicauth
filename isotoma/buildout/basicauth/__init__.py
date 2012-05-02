@@ -17,7 +17,8 @@ from isotoma.buildout.basicauth.download import inject_credentials
 logger = logging.getLogger('isotoma.buildout.basicauth')
 
 def _retrieve_credentials(buildout):
-    basicauth = buildout.get('basicauth')
+    buildout._raw.setdefault('basicauth', {})
+    basicauth = buildout['basicauth']
 
     # Interactive mode by default
     basicauth.setdefault('interactive', 'yes')
@@ -29,10 +30,9 @@ def _retrieve_credentials(buildout):
     ''')
     fetch_order = basicauth.get_list('fetch-order')
 
-    if basicauth:
+    credentials_parts = []
+    if basicauth and 'credentials' in basicauth:
         credentials_parts = basicauth.get_list('credentials')
-    else: # Legacy mode
-        credentials_parts = []
 
     credentials = []
 
