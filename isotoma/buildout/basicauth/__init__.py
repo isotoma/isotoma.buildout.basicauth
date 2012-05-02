@@ -1,8 +1,6 @@
 """
 """
 
-import os
-import sys
 import logging
 
 from setuptools import package_index
@@ -16,53 +14,17 @@ from isotoma.buildout.basicauth.download import inject_credentials
 
 logger = logging.getLogger('isotoma.buildout.basicauth')
 
-def _retrieve_credentials(buildout):
+def install(buildout):
     buildout._raw.setdefault('basicauth', {})
     basicauth = buildout['basicauth']
-
-    # Interactive mode by default
     basicauth.setdefault('interactive', 'yes')
-    interactive = basicauth.get_bool('interactive')
+    basicauth.setdefault('fetch-order', '\n'.join(("keyring", "lovely", "buildout", "pypi", "prompt")))
 
-    basicauth.setdefault('fetch-order', '''\
-        use-pypirc
-        prompt
-    ''')
-    fetch_order = basicauth.get_list('fetch-order')
-
-    credentials_parts = []
-    if basicauth and 'credentials' in basicauth:
-        credentials_parts = basicauth.get_list('credentials')
-
-    credentials = []
-
-    for c in credentials_parts:
-        exclude = ('uri', 'username', 'password')
-        stanza = buildout.get(c)
-        if not stanza:
-            raise UserError('basicauth part refers to nonexistent "%s" part' % c)
-        uri = stanza.get('uri')
-
-        fetch_methods = {}
-
-        for key, value in stanza.iteritems():
-            if not key in exclude:
-                fetch_methods[key] = value
-
-        credentials.append(Credentials(
-            uri=uri,
-            username=stanza.get('username'),
-            password=stanza.get('password'),
-            fetch_using=fetch_methods,
-            fetch_order=fetch_order,
-            interactive=interactive,
-        ))
-
-    return credentials
-
-def install(buildout):
-    """Install the basicauth extension"""
-    credentials = _retrieve_credentials(buildout)
+    credentials = Credentials(
+        buildout,
+        fetchers = basicauth.get_list("fetch-order"),
+        interactive = basicauth.get_bool("interactive"),
+        )
 
     # Monkeypatch distribute
     logger.info('Monkeypatching distribute to add http auth support')

@@ -12,23 +12,12 @@ import base64
 
 logger = logging.getLogger(__name__)
 
-from zc.buildout import download
-
 def strip_auth(url):
     scheme, netloc, path, params, query, frag = urlparse.urlparse(url)
     if scheme in ('http', 'https'):
         auth, host = urllib2.splituser(netloc)
         return urlparse.urlunparse((scheme,host,path,params,query,frag))
     return url
-
-def credential_for_url(url, credentials):
-    """Given a list of `Credential` objects, find the one pertaining to the
-    relevant URL"""
-    this_netloc = urlparse.urlparse(url)[1]
-    for credential in credentials:
-        netloc = urlparse.urlparse(credential.uri)[1]
-        if netloc == this_netloc:
-            return credential
 
 def _inject_credentials(url, username=None, password=None):
     """Used by `inject_credentials` decorators to actually do the injecting"""
@@ -53,52 +42,26 @@ def inject_credentials(credentials):
     def decorator(auth_func):
         def wrapper(url):
             logger.debug('Downloading URL %s' % strip_auth(url))
-            credential = credential_for_url(url, credentials)
-
-            def log_exception(exc, url_e):
-                code = getattr(exc, 'code', 'unknown')
-                if code in (401, 403):
-                    logger.critical('Could not authenticate %s. (%d)' % (url_e, code))
-                else:
-                    logger.critical('Cannot fetch %s (%r)' % (url_e, code))
-                    logger.debug(e)
-
-
-            if not credential:
-                stripped_auth = strip_auth(url)
-                if url == stripped_auth:
-                    logger.debug('No credentials for %s' % strip_auth(url))
-                try:
-                    return auth_func(url)
-                except Exception, e:
-                    log_exception(e, url)
-                    raise
 
             e = None
-            for cred_tuple in credential.get_credentials():
-                e = None
-                try:
-                    new_url = _inject_credentials(
-                        url, cred_tuple[0], cred_tuple[1]
-                    )
 
+            for creds in credentials.search(url):
+                new_url = _inject_credentials(url, *creds)
+                try:
                     res = auth_func(new_url)
                 except Exception, e:
-                    log_exception(e, url)
+                    code = getattr(e, 'code', 'unknown')
+                    if code in (401, 403):
+                        logger.critical('Could not authenticate %s. (%d)' % (url, code))
+                    else:
+                        logger.critical('Cannot fetch %s (%r)' % (url, code))
+                        logger.debug(e)
+                        raise
                 else:
-                    logger.debug("Credential was succesful")
-                    credential.success()
+                    credentials.success(url, *creds)
                     return res
 
-            # If we still haven't managed to return a value, re-raise
-            if e:
-                raise e
-            else:
-                try:
-                    return auth_func(url)
-                except Exception, e:
-                    log_exception(e, url)
-                    raise
+            raise e
 
         return wrapper
     return decorator
