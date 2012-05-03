@@ -23,7 +23,7 @@ class Credentials(object):
 
     def get_realm(self, url):
         pr = urlparse(url)
-        return urlunparse((pr[0], pr[0], '/', '', '', ''))
+        return urlunparse((pr[0], pr[1], '/', '', '', ''))
 
     def search(self, url):
         realm = self.get_realm(url)
@@ -40,5 +40,8 @@ class Credentials(object):
                 yield cred
 
     def success(self, url, username, password):
-        self.urls[self.get_realm(url)] = (username, password)
+        realm = self.get_realm(url)
+        self.urls[realm] = (username, password)
+        for f in self.fetchers:
+            f.success(realm, username, password)
 
