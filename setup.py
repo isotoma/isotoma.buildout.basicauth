@@ -24,6 +24,9 @@ setup(
         'zc.buildout',
         'keyring',
     ],
+    extras_require={
+        "test": ['unittest2', 'mock'],
+    },
     entry_points='''
     [zc.buildout.extension]
     default = isotoma.buildout.basicauth:install

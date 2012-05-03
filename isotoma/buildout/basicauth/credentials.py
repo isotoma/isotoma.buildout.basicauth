@@ -23,13 +23,13 @@ class Credentials(object):
 
     def get_realm(self, url):
         pr = urlparse(url)
-        return urlunparse((pr.scheme, pr.netloc, '/', '', '', ''))
+        return urlunparse((pr[0], pr[0], '/', '', '', ''))
 
     def search(self, url):
         realm = self.get_realm(url)
         if realm in self.urls:
             logger.debug("Using previously successful credentials")
-            yield self.urls[url]
+            yield self.urls[realm]
         else:
             logger.debug("First time seeing this URL - trying with no credentials")
             yield None, None
