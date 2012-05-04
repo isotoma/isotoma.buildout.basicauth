@@ -1,5 +1,7 @@
 from unittest2 import TestCase
 import mock
+import StringIO
+
 from zc.buildout import UserError
 from isotoma.buildout.basicauth import fetchers
 
@@ -191,5 +193,66 @@ class TestBuildout(TestCase):
         matches = list(self.fetcher.search("http://www.isotoma.com", ""))
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0], ("john", "password"))
+
+
+class TestPyPiRCFetcher(TestCase):
+
+    def setUp(self):
+        patcher = mock.patch("os.path.exists")
+        self.exists = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.exists.return_value = False
+
+        patcher = mock.patch("ConfigParser.open", create=True)
+        self.open = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def search(self, uri="http://foo.local/"):
+        f = fetchers.PyPiRCFetcher(mock.Mock())
+        return list(f.search(uri, uri))
+
+    def test_no_rc(self):
+        self.assertEqual(len(self.search()), 0)
+
+    def test_empty_rc(self):
+        self.exists.return_value = True
+        self.open.side_effect = lambda x: StringIO.StringIO("\n")
+        self.assertEqual(len(self.search()), 0)
+
+    def test_valid_rc(self):
+        self.exists.return_value = True
+        self.open.side_effect = lambda x: StringIO.StringIO(
+            "[distutils]\n"
+            "index-servers =\n"
+            "    apple\n"
+            "    orange\n"
+            "    banana\n"
+            "[orange]\n"
+            "repository:http://orange.local/\n"
+            "username = orange\n"
+            "password = password\n"
+            "[apple]\n"
+            "repository = http://apple.local/\n"
+            "username = apple\n"
+            "password = password\n"
+            "[banana]\n"
+            "repository = http://banana.local/\n"
+            "[server-login]\n"
+            "repository = http://server.local/\n"
+            "username = server\n"
+            "password = password\n"
+            )
+
+        self.assertEqual(len(self.search()), 0)
+        self.assertEqual(len(self.search("http://banana.local/simple")), 0)
+
+        matches = self.search("http://apple.local/simple/a/")
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0], ("apple", "password"))
+
+        matches = self.search("http://server.local/simple/a/")
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0], ("server", "password"))
+
 
 

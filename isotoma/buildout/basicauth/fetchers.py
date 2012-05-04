@@ -65,14 +65,15 @@ class PyPiRCFetcher(Fetcher):
         self.config = self._get_pypirc_credentials()
 
     def search(self, uri, realm):
-        if uri in self.config:
-            yield self.config[uri]
+        for realm, username, password in self.config:
+            if uri.startswith(realm):
+                yield username, password
 
     def _get_pypirc_credentials(self):
         if not os.path.exists(self.pypirc_loc):
-            return
+            return []
 
-        config = {}
+        config = []
 
         c = ConfigParser.ConfigParser()
         c.read(self.pypirc_loc)
@@ -90,12 +91,13 @@ class PyPiRCFetcher(Fetcher):
                 idx.append(section)
 
         for section in idx:
-            uri = c.get('server-login', 'repository')
-            username = c.get(section, 'username')
-            password = c.get(section, 'password')
-            if not uri or not username or not password:
+            try:
+                uri = c.get(section, 'repository')
+                username = c.get(section, 'username')
+                password = c.get(section, 'password')
+            except ConfigParser.NoOptionError:
                 continue
-            config[uri] = (username, password)
+            config.append((uri, username, password))
 
         return config
 
