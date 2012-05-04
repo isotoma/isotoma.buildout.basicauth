@@ -81,3 +81,39 @@ class TestPromptFetcher(TestCase):
         self.assertEqual(len(list(self.fetcher.search("a", "b"))), 55)
 
 
+class TestLovely(TestCase):
+
+    def setUp(self):
+        self.mgr = mock.Mock()
+        self.part = {}
+        self.mgr.buildout = {"lovely.buildouthttp": self.part}
+
+        self.fetcher = fetchers.LovelyFetcher(self.mgr)
+
+    def test_empty_buildout(self):
+        self.mgr.buildout = {}
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_empty_part(self):
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_empty_uri(self):
+        self.part.update(dict(username="john", password="password"))
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_empty_username(self):
+        self.part.update(dict(uri="http://www.isotoma.com", password="password"))
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_empty_password(self):
+        self.part.update(dict(uri="http://www.isotoma.com", username="john"))
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_match(self):
+        self.part.update(dict(uri="http://www.isotoma.com", username="john", password="password"))
+
+        matches = list(self.fetcher.search("http://www.isotoma.com", ""))
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0], ("john", "password"))
+
+

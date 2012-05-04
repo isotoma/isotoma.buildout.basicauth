@@ -138,7 +138,8 @@ class LovelyFetcher(Fetcher):
         if lovely_uri and uri.startswith(lovely_uri):
             username = lovely.get("username", None)
             password = lovely.get("password", None)
-            yield username, password
+            if username and password:
+                yield username, password
 
 
 class BuildoutFetcher(Fetcher):
