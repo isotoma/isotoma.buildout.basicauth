@@ -1,6 +1,6 @@
 from unittest2 import TestCase
 import mock
-
+from zc.buildout import UserError
 from isotoma.buildout.basicauth import fetchers
 
 
@@ -112,6 +112,82 @@ class TestLovely(TestCase):
     def test_match(self):
         self.part.update(dict(uri="http://www.isotoma.com", username="john", password="password"))
 
+        matches = list(self.fetcher.search("http://www.isotoma.com", ""))
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0], ("john", "password"))
+
+
+def FakeOption(**kwargs):
+    actual = {}
+    actual.update(kwargs)
+
+    def get(k):
+        try:
+            return actual[k]
+        except KeyError:
+            raise UserError("Missing key '%s'" % k)
+
+    def get_list(k):
+        value = get(k).strip()
+        if not value:
+            return []
+        return [x.strip() for x in value.split("\n") if x.strip()]
+
+    mocked = mock.MagicMock()
+    mocked.__getitem__.side_effect = get
+    mocked.__setitem__.side_effect = actual.__setitem__
+    mocked.__delitem__.side_effect = actual.__delitem__
+    mocked.__contains__.side_effect = actual.__contains__
+    mocked.get_list.side_effect = get_list
+    return mocked
+
+
+class TestBuildout(TestCase):
+
+    def setUp(self):
+        self.mgr = mock.Mock()
+
+        self.basicauth = FakeOption(credentials="isotoma")
+        self.isotoma = FakeOption(
+            uri = "http://www.isotoma.com",
+            username = "john",
+            password = "password",
+            )
+        self.mgr.buildout = FakeOption(basicauth=self.basicauth, isotoma=self.isotoma)
+
+    def test_empty_buildout(self):
+        self.mgr.buildout = {}
+        self.fetcher = fetchers.BuildoutFetcher(self.mgr)
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_empty_part(self):
+        self.mgr.buildout["basicauth"] = {}
+        self.fetcher = fetchers.BuildoutFetcher(self.mgr)
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_empty_creds_list(self):
+        self.basicauth["credentials"] = ""
+        self.fetcher = fetchers.BuildoutFetcher(self.mgr)
+        self.assertEqual(len(list(self.fetcher.search("http://www.isotoma.com", ""))), 0)
+
+    def test_empty_missing_part(self):
+        del self.mgr.buildout["isotoma"]
+        self.assertRaises(UserError, fetchers.BuildoutFetcher, self.mgr)
+
+    def test_empty_uri(self):
+        del self.isotoma["uri"]
+        self.assertRaises(UserError, fetchers.BuildoutFetcher, self.mgr)
+
+    def test_empty_username(self):
+        del self.isotoma["username"]
+        self.assertRaises(UserError, fetchers.BuildoutFetcher, self.mgr)
+
+    def test_empty_password(self):
+        del self.isotoma["password"]
+        self.assertRaises(UserError, fetchers.BuildoutFetcher, self.mgr)
+
+    def test_match(self):
+        self.fetcher = fetchers.BuildoutFetcher(self.mgr)
         matches = list(self.fetcher.search("http://www.isotoma.com", ""))
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0], ("john", "password"))

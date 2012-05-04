@@ -146,12 +146,23 @@ class BuildoutFetcher(Fetcher):
 
     name = "buildout"
 
-    def search(self, uri, realm):
+
+    def __init__(self, mgr):
+        super(BuildoutFetcher, self).__init__(mgr)
+        self.creds = []
+
+        if not "basicauth" in self.mgr.buildout:
+            return
+
         basicauth = self.mgr.buildout["basicauth"]
         if "credentials" in basicauth:
             for partname in basicauth.get_list("credentials"):
                 part = self.mgr.buildout[partname]
-                if uri.startswith(part["uri"]):
-                    yield part["username"], part["password"]
+                self.creds.append((part["uri"], part["username"], part["password"]))
 
+
+    def search(self, uri, realm):
+        for repo_uri, username, password in self.creds:
+            if uri.startswith(repo_uri):
+                yield username, password
 
