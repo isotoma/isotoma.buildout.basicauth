@@ -1,0 +1,7 @@
+*.pyc
+.installed.cfg
+bin/
+develop-eggs/
+eggs/
+isotoma.buildout.basicauth.egg-info/
+

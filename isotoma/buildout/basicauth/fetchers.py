@@ -2,6 +2,7 @@ import os
 import logging
 import getpass
 import urlparse
+import ConfigParser
 
 import keyring
 
@@ -24,100 +25,79 @@ class Fetcher(object):
     then return as many credentials as it could.
     """
 
-    def __init__(self, value, uri, interactive, **kwargs):
-        self.uri = uri
-        self.value = value
-        self.interactive = interactive
-        self.max_tries = 1
-        self._username = kwargs.get('username')
-        self._password = kwargs.get('password')
+    def __init__(self, mgr):
+        self.mgr = mgr
 
-    def success(self, username, password):
+    def success(self, uri, username, password):
         """A method run after successful credential entry"""
         return
 
-    def credentials(self):
-        for i in range(self.max_tries):
-            yield (self._username, self._password)
+    def search(self, uri, realm):
+        raise StopIteration
+
 
 class PromptFetcher(Fetcher):
 
-    def __init__(self, value, uri, interactive, **kwargs):
-        super(PromptFetcher, self).__init__(value, uri, interactive, **kwargs)
-        self._cache = None
-        self._tried_cache = False
+    name = "prompt"
+
+    def __init__(self, mgr):
+        super(PromptFetcher, self).__init__(mgr)
         self.max_tries = 5
 
-    def credentials(self):
-        if not self.interactive or self.value != 'yes':
-            raise StopIteration()
+    def search(self, uri, realm):
+        if not self.mgr.interactive:
+            raise StopIteration
+
         for i in range(self.max_tries):
-            username, password = None, None
-            if not self._tried_cache and self._cache:
-                username, password = self._cache
-                self._tried_cache = True
-            if not (username and password):
-                username = raw_input('Username for %s: ' % self.uri)
-                password = getpass.getpass('Password for %s: ' % self.uri)
+            username = raw_input('Username for %s: ' % realm)
+            password = getpass.getpass('Password for %s: ' % realm)
             yield (username, password)
 
 
 class PyPiRCFetcher(Fetcher):
 
+    name = "pypi"
     PYPIRC_LOC = '~/.pypirc'
 
-    def __init__(self, value, uri, interactive, **kwargs):
-        super(PyPiRCFetcher, self).__init__(value, uri, interactive, **kwargs)
-        self.pypirc_loc = os.path.expanduser(
-            kwargs.get('pypirc_loc', self.PYPIRC_LOC)
-        )
-        self._successful_config = None
+    def __init__(self, mgr):
+        super(PyPiRCFetcher, self).__init__(mgr)
+        self.pypirc_loc = os.path.expanduser(self.PYPIRC_LOC)
+        self.config = self._get_pypirc_credentials()
 
-    def credentials(self):
-        if self._successful_config:
-            yield self._successful_config
-
-        config = self._get_pypirc_credentials()
-        if config.has_key('repository'):
-            netloc = lambda url: urlparse.urlparse(url)[1]
-            if netloc(config.get('repository')) == netloc(self.uri):
-                self._creds = (config.get('username'), config.get('password'))
-                if self._creds[0] and self._creds[1]:
-                    yield self._creds
-
-    def success(self, username, password):
-        if hasattr(self, '_creds'):
-            self._successful_config = self._creds
+    def search(self, uri, realm):
+        for realm, username, password in self.config:
+            if uri.startswith(realm):
+                yield username, password
 
     def _get_pypirc_credentials(self):
-        """Acquire credentials from the user's pypirc file"""
-        try:
-            from distutils.dist import Distribution
-            from distutils.config import PyPIRCCommand
+        if not os.path.exists(self.pypirc_loc):
+            return []
 
-            p = PyPIRCCommand(Distribution())
+        config = []
 
-            p.repository = self.value
-            p._get_rc_file = lambda: self.pypirc_loc
-
-            return p._read_pypirc()
-        except ImportError:
-            return self.get_pypirc_py24()
-
-    def _get_pypirc_py24():
-        import ConfigParser
-
-        config = {}
         c = ConfigParser.ConfigParser()
+        c.read(self.pypirc_loc)
 
-        if os.path.exists(self.pypirc_loc):
-            c.read(self.pypirc_loc)
-            config['username'] = c.get('server-login', 'username')
-            config['password'] = c.get('server-login', 'password')
+        idx = []
 
-            repo = c.get('server-login', 'repository')
-            if repo:
-                config['repository'] = repo
+        if c.has_section("server-login"):
+            idx.append("server-login")
+
+        if c.has_section("distutils"):
+            for section in c.get("distutils", "index-servers").split("\n"):
+                section = section.strip()
+                if not section:
+                    continue
+                idx.append(section)
+
+        for section in idx:
+            try:
+                uri = c.get(section, 'repository')
+                username = c.get(section, 'username')
+                password = c.get(section, 'password')
+            except ConfigParser.NoOptionError:
+                continue
+            config.append((uri, username, password))
 
         return config
 
@@ -128,31 +108,63 @@ class KeyringFetcher(Fetcher):
     exist. Degrades gracefully if the specified keyring doesn't exist.
     """
 
+    name = "keyring"
     SERVICE = 'isotoma.buildout.basicauth'
     SEP = ':|'
 
-    def __init__(self, value, uri, interactive, **kwargs):
-        super(KeyringFetcher, self).__init__(value, uri, interactive, **kwargs)
-        self._configure_keyring()
-        self._parse_credentials()
+    def __init__(self, mgr):
+       super(KeyringFetcher, self).__init__(mgr)
+       backend = keyring.core.load_keyring(None, 'keyring.backend.%s' % "GnomeKeyring")
+       keyring.set_keyring(backend)
 
-    def success(self, username, password):
-        if getattr(self, '_no_keyring', False):
-            return
-
+    def success(self, uri, username, password):
         pw = self.SEP.join((username, password))
         try:
-            keyring.set_password(self.SERVICE, self.uri, pw)
+            keyring.set_password(self.SERVICE, uri, pw)
         except keyring.backend.PasswordSetError:
-            logger.warning('Could not set password in keyring %s' % self.value)
+            logger.warning('Could not set password in keyring')
 
-    def _parse_credentials(self):
-        pw = keyring.get_password(self.SERVICE, self.uri)
+    def search(self, uri, realm):
+        pw = keyring.get_password(self.SERVICE, realm)
         if pw:
-            self._username, self._password = pw.split(self.SEP)
-        else:
-            logger.warning('No password for %s in keyring %s' % (self.uri, self.value))
+            yield pw.split(self.SEP)
 
-    def _configure_keyring(self):
-        backend = keyring.core.load_keyring(None, 'keyring.backend.%s' % self.value)
-        keyring.set_keyring(backend)
+
+class LovelyFetcher(Fetcher):
+
+    name = "lovely"
+
+    def search(self, uri, realm):
+        lovely = self.mgr.buildout.get("lovely.buildouthttp", {})
+        lovely_uri = lovely.get("uri", None)
+        if lovely_uri and uri.startswith(lovely_uri):
+            username = lovely.get("username", None)
+            password = lovely.get("password", None)
+            if username and password:
+                yield username, password
+
+
+class BuildoutFetcher(Fetcher):
+
+    name = "buildout"
+
+
+    def __init__(self, mgr):
+        super(BuildoutFetcher, self).__init__(mgr)
+        self.creds = []
+
+        if not "basicauth" in self.mgr.buildout:
+            return
+
+        basicauth = self.mgr.buildout["basicauth"]
+        if "credentials" in basicauth:
+            for partname in basicauth.get_list("credentials"):
+                part = self.mgr.buildout[partname]
+                self.creds.append((part["uri"], part["username"], part["password"]))
+
+
+    def search(self, uri, realm):
+        for repo_uri, username, password in self.creds:
+            if uri.startswith(repo_uri):
+                yield username, password
+

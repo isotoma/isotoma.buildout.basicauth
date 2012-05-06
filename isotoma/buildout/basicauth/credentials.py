@@ -1,108 +1,47 @@
 import logging
-
-from isotoma.buildout.basicauth.fetchers import (
-    Fetcher,
-    PyPiRCFetcher,
-    KeyringFetcher,
-    PromptFetcher,
-)
+from urlparse import urlparse, urlunparse
+from zc.buildout import UserError
+from isotoma.buildout.basicauth.fetchers import Fetcher
 
 logger = logging.getLogger(__name__)
 
 class Credentials(object):
-    """
-    A class to instantiate then iterate over `Fetcher`s to acquire a full set
-    of credentials for a particular URI.
-    """
 
-    AVAILABLE_FETCHERS = {
-        'use-pypirc': PyPiRCFetcher,
-        'prompt': PromptFetcher,
-    #    'keyring': KeyringFetcher,
-    }
+    def __init__(self, buildout, fetchers, interactive=True):
+        self.urls = {}
+        self.buildout = buildout
+        self.interactive = interactive
+        self.fetchers = []
+        [self.add_fetcher(f) for f in fetchers]
 
-    def __init__(self, uri, interactive=False, fetch_using={}, fetch_order=[], **kwargs):
-        self.uri = uri
-        self._username = kwargs.get('username')
-        self._password = kwargs.get('password')
-        self._fetch_using = fetch_using
-        self._fetch_order = fetch_order
-        self._interactive = interactive
-        self._fetchers = []
-        self._successful_creds = None
+    def add_fetcher(self, fetchername):
+        for f in Fetcher.__subclasses__():
+            if f.name == fetchername:
+                self.fetchers.append(f(self))
+                return
+        raise UserError("No fetcher '%s'" % fetchername)
 
-    def find_or_create(self, fetcher_name, parameter, ignore_missing=False):
-        """Instantiate or reuse an existing fetcher object"""
-        try:
-            fetcher_cls = self.AVAILABLE_FETCHERS[fetcher_name]
-        except KeyError, e:
-            if ignore_missing:
-                logger.debug('No credential fetcher for key "%s".' % e.args[0])
-                return None
-            else:
-                raise
+    def get_realm(self, url):
+        pr = urlparse(url)
+        return urlunparse((pr[0], pr[1], '/', '', '', ''))
 
-        f_obj = None
-        for _f in self._fetchers:
-            if isinstance(_f, fetcher_cls):
-                f_obj = _f
-        if not f_obj:
-            f_obj = fetcher_cls(
-                parameter,
-                self.uri,
-                username=self._username,
-                password=self._password,
-                interactive=self._interactive,
-            )
-            self._fetchers.append(f_obj)
-        return f_obj
+    def search(self, url):
+        realm = self.get_realm(url)
+        if realm in self.urls:
+            logger.debug("Using previously successful credentials")
+            yield self.urls[realm]
+        else:
+            logger.debug("First time seeing this URL - trying with no credentials")
+            yield None, None
 
-    def get_credentials(self, ignore_missing=True):
-        """Iterate across all of the fetchers yielding their credentials (if
-        they have any)"""
-        if self._successful_creds:
-            yield self._successful_creds
+        for f in self.fetchers:
+            logger.debug("Searching '%s' for credentials" % f.name)
+            for cred in f.search(url, realm):
+                yield cred
 
-        # Allow for hard-coded credentials
-        if self._username and self._password:
-            self._current_creds = (self._username, self._password)
-            yield self._current_creds
+    def success(self, url, username, password):
+        realm = self.get_realm(url)
+        self.urls[realm] = (username, password)
+        for f in self.fetchers:
+            f.success(realm, username, password)
 
-        fetch_iters = []
-
-        # Add fetchers using the explicit ordering
-        for fetcher_name in self._fetch_order:
-            if fetcher_name in self._fetch_using.keys():
-                parameter = self._fetch_using[fetcher_name]
-                f = self.find_or_create(fetcher_name, parameter, ignore_missing)
-                if f:
-                    fetch_iters.append(f.credentials())
-
-        # Add the rest afterwards
-        for fetcher_name in self._fetch_using.keys():
-            if not fetcher_name in self._fetch_order:
-                parameter = self._fetch_using[fetcher_name]
-                f = self.find_or_create(fetcher_name, parameter, ignore_missing)
-                if f:
-                    fetch_iters.append(f.credentials())
-
-        next_iters = fetch_iters
-
-        while len(next_iters):
-            fetch_iters = list(next_iters)
-            next_iters = []
-            for fetch_iter in fetch_iters:
-                try:
-                    self._current_creds = fetch_iter.next()
-                    next_iters.append(fetch_iter)
-                    yield self._current_creds
-                except StopIteration:
-                    continue
-
-    def success(self):
-        self._successful_creds = self._current_creds
-
-        if hasattr(self, '_current_creds'):
-            for f in self._fetchers:
-                a = (self._current_creds[0], self._current_creds[1])
-                f.success(*a)

@@ -19,12 +19,14 @@ setup(
     include_package_data=True,
     namespace_packages=['isotoma', 'isotoma.buildout'],
     install_requires=[
-        'httplib2',
         'setuptools',
         'missingbits',
         'zc.buildout',
         'keyring',
     ],
+    extras_require={
+        "test": ['unittest2', 'mock'],
+    },
     entry_points='''
     [zc.buildout.extension]
     default = isotoma.buildout.basicauth:install

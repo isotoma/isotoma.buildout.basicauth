@@ -1,0 +1,15 @@
+language: python
+
+env:
+  - PY=python2.4 BUILDOUT=1.4.3
+  - PY=python2.4 BUILDOUT=1.5.2
+  - PY=python2.6 BUILDOUT=1.4.3
+  - PY=python2.6 BUILDOUT=1.5.2
+
+install:
+  - $PY bootstrap.py
+  - ./bin/buildout versions:zc.buildout=$BUILDOUT buildout:extensions= buildout:parts=
+  - ./bin/buildout versions:zc.buildout=$BUILDOUT
+
+script: ./bin/test
+
