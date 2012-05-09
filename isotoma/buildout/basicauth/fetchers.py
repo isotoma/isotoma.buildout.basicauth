@@ -51,7 +51,7 @@ class PromptFetcher(Fetcher):
         for i in range(self.max_tries):
             username = raw_input('Username for %s: ' % realm)
             password = getpass.getpass('Password for %s: ' % realm)
-            yield (username, password)
+            yield (username, password, True)
 
 
 class PyPiRCFetcher(Fetcher):
@@ -67,7 +67,7 @@ class PyPiRCFetcher(Fetcher):
     def search(self, uri, realm):
         for realm, username, password in self.config:
             if uri.startswith(realm):
-                yield username, password
+                yield username, password, True
 
     def _get_pypirc_credentials(self):
         if not os.path.exists(self.pypirc_loc):
@@ -127,7 +127,8 @@ class KeyringFetcher(Fetcher):
     def search(self, uri, realm):
         pw = keyring.get_password(self.SERVICE, realm)
         if pw:
-            yield pw.split(self.SEP)
+            username, password = pw.split(self.SEP)
+            yield username, password, True
 
 
 class LovelyFetcher(Fetcher):
@@ -141,7 +142,7 @@ class LovelyFetcher(Fetcher):
             username = lovely.get("username", None)
             password = lovely.get("password", None)
             if username and password:
-                yield username, password
+                yield username, password, True
 
 
 class BuildoutFetcher(Fetcher):
@@ -166,5 +167,5 @@ class BuildoutFetcher(Fetcher):
     def search(self, uri, realm):
         for repo_uri, username, password in self.creds:
             if uri.startswith(repo_uri):
-                yield username, password
+                yield username, password, True
 

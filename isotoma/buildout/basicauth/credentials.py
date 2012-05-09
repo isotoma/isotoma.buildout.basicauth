@@ -29,19 +29,26 @@ class Credentials(object):
         realm = self.get_realm(url)
         if realm in self.urls:
             logger.debug("Using previously successful credentials")
-            yield self.urls[realm]
+            username, password = self.urls[realm]
+            # We say this password can't be cached because it already was cached
+            # During a plone buildout that would make us write to the keyring
+            # 200 times!!
+            yield username, password, False
         else:
             logger.debug("First time seeing this URL - trying with no credentials")
-            yield None, None
+            # We say this password can't be cached because we don't want to
+            # send None, None to backends
+            yield None, None, False
 
         for f in self.fetchers:
             logger.debug("Searching '%s' for credentials" % f.name)
             for cred in f.search(url, realm):
                 yield cred
 
-    def success(self, url, username, password):
+    def success(self, url, username, password, cache):
         realm = self.get_realm(url)
         self.urls[realm] = (username, password)
-        for f in self.fetchers:
-            f.success(realm, username, password)
+        if cache:
+            for f in self.fetchers:
+                f.success(realm, username, password)
 

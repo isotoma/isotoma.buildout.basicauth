@@ -32,7 +32,7 @@ class TestKeyring(TestCase):
         fetcher = self.setup_keyring("john", "sjis")
         matches = list(fetcher.search("http://githib.com/isotoma", "http://github.com"))
         self.failUnlessEqual(len(matches), 1)
-        self.failUnlessEqual(matches[0], ["john", "sjis"])
+        self.failUnlessEqual(matches[0], ("john", "sjis", True))
 
     def test_search_fail(self):
         fetcher = self.setup_keyring()
@@ -68,11 +68,11 @@ class TestPromptFetcher(TestCase):
         self.username = "jhon"
         self.password = "penguin55"
         walker = self.fetcher.search("a", "b")
-        self.assertEqual(walker.next(), ("jhon", "penguin55"))
+        self.assertEqual(walker.next(), ("jhon", "penguin55", True))
 
         self.username = "john"
         self.password = "penguin55"
-        self.assertEqual(walker.next(), ("john", "penguin55"))
+        self.assertEqual(walker.next(), ("john", "penguin55", True))
 
         self.assertEqual(self.raw_input.call_count, 2)
         self.assertEqual(self.getpass.call_count, 2)
@@ -116,7 +116,7 @@ class TestLovely(TestCase):
 
         matches = list(self.fetcher.search("http://www.isotoma.com", ""))
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0], ("john", "password"))
+        self.assertEqual(matches[0], ("john", "password", True))
 
 
 def FakeOption(**kwargs):
@@ -192,7 +192,7 @@ class TestBuildout(TestCase):
         self.fetcher = fetchers.BuildoutFetcher(self.mgr)
         matches = list(self.fetcher.search("http://www.isotoma.com", ""))
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0], ("john", "password"))
+        self.assertEqual(matches[0], ("john", "password", True))
 
 
 class TestPyPiRCFetcher(TestCase):
@@ -248,11 +248,11 @@ class TestPyPiRCFetcher(TestCase):
 
         matches = self.search("http://apple.local/simple/a/")
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0], ("apple", "password"))
+        self.assertEqual(matches[0], ("apple", "password", True))
 
         matches = self.search("http://server.local/simple/a/")
         self.assertEqual(len(matches), 1)
-        self.assertEqual(matches[0], ("server", "password"))
+        self.assertEqual(matches[0], ("server", "password", True))
 
 
 

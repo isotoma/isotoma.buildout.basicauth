@@ -53,7 +53,7 @@ class TestInjectionDecorator(TestCase):
 
     def setUp(self):
         self.credentials = mock.Mock()
-        self.credentials.search.return_value = [(None, None)]
+        self.credentials.search.return_value = [(None, None, False)]
 
         self.auth_func = mock.Mock()
         self.auth_func.return_value = "SUCCESS"
@@ -67,7 +67,7 @@ class TestInjectionDecorator(TestCase):
     def test_passthru(self):
         self.auth_func.side_effect=MockPopper(AuthException("boom"), "SUCCESS")
 
-        self.credentials.search.return_value.append(("andy", "penguin55"))
+        self.credentials.search.return_value.append(("andy", "penguin55", True))
         self.assertEquals(self.func("http://www.isotoma.com/"), "SUCCESS")
         self.assertEquals(self.auth_func.call_count, 2)
 

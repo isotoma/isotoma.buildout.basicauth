@@ -45,8 +45,8 @@ def inject_credentials(credentials):
 
             e = None
 
-            for creds in credentials.search(url):
-                new_url = _inject_credentials(url, *creds)
+            for username, password, cache in credentials.search(url):
+                new_url = _inject_credentials(url, username, password)
                 try:
                     res = auth_func(new_url)
                 except Exception, e:
@@ -58,7 +58,7 @@ def inject_credentials(credentials):
                         logger.debug(e)
                         raise
                 else:
-                    credentials.success(url, *creds)
+                    credentials.success(url, username, password, cache)
                     return res
 
             raise e
