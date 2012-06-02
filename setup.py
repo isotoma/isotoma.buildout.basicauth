@@ -22,7 +22,7 @@ setup(
         'setuptools',
         'missingbits',
         'zc.buildout',
-        'keyring',
+        'keyring <= 0.6.2',
     ],
     extras_require={
         "test": ['unittest2', 'mock'],
