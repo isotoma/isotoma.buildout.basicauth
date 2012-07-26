@@ -35,6 +35,7 @@ def _inject_credentials(url, username=None, password=None):
                 url = urlparse.urlunparse((scheme,netloc,path,params,query,frag))
     return url
 
+
 def inject_credentials(credentials):
     """Decorator factory returning a decorator that will keep injecting the
     relevant `Credential` into a URL until the `Credential` is exhausted."""
@@ -65,3 +66,38 @@ def inject_credentials(credentials):
 
         return wrapper
     return decorator
+
+
+def inject_urlretrieve_credentials(credentials):
+    """Decorator factory returning a decorator that will keep injecting the
+    relevant `Credential` into a URL until the `Credential` is exhausted."""
+
+    def decorator(auth_func):
+        def wrapper(url):
+            logger.debug('Downloading URL %s' % strip_auth(url))
+
+            e = None
+
+            for username, password, cache in credentials.search(url):
+                new_url = _inject_credentials(url, username, password)
+                try:
+                    res = auth_func(new_url)
+                except IOError, e:
+                    code = e.args[1]
+
+                    if code in (401, 403):
+                        logger.critical('Could not authenticate %s. (%d)' % (url, code))
+                    else:
+                        logger.critical('Cannot fetch %s (%r)' % (url, code))
+                        logger.debug(e)
+                        raise
+                else:
+                    credentials.success(url, username, password, cache)
+                    return res
+
+            raise e
+
+        return wrapper
+    return decorator
+
+
