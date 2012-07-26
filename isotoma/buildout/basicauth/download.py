@@ -9,6 +9,8 @@ import urllib
 import urllib2
 import urlparse
 import base64
+import time
+from zc.buildout import UserError
 
 logger = logging.getLogger(__name__)
 
@@ -36,68 +38,105 @@ def _inject_credentials(url, username=None, password=None):
     return url
 
 
+class AuthError(Exception):
+    pass
+
+class NotFoundError(Exception):
+    pass
+
+class AuthAdaptor(object):
+
+    ATTEMPTS = 3
+
+    def __init__(self, credentials):
+        self.credentials = credentials
+
+    def call(self, *args, **kwargs):
+        raise NotImplementedError(self.call)
+
+    def attempt(self, *args, **kwargs):
+        for i in range(self.ATTEMPTS):
+            try:
+                return self.call(*args, **kwargs)
+            except AuthError:
+                raise
+            except NotFoundError:
+                raise
+            except Exception, e:
+                logger.exception("Attempt to access resource failed. Will try again in %d seconds" % i)
+                time.sleep(i)
+
+        self.broken()
+
+    def broken(self):
+        raise UserError("Despite multiple attempts buildout was unable to access a remote resource")
+
+    def forbidden(self):
+        raise UserError("Forbidden")
+
+    def not_found(self):
+        raise UserError("Resource not found")
+
+    def __call__(self, url, *args, **kwargs):
+        logger.debug('Downloading URL %s' % strip_auth(url))
+
+        for username, password, cache in self.credentials.search(url):
+            new_url = _inject_credentials(url, username, password)
+            try:
+                res = self.attempt(url, *args, **kwargs)
+
+            except AuthError, e:
+                logger.debug('Could not authenticate %s.' % (url, ))
+
+            except NotFoundError, e:
+                self.not_found()
+
+            else:
+                self.credentials.success(url, username, password, cache)
+                return res
+
+        self.forbidden()
+
+
+
 def inject_credentials(credentials):
-    """Decorator factory returning a decorator that will keep injecting the
-    relevant `Credential` into a URL until the `Credential` is exhausted."""
-
     def decorator(auth_func):
-        def wrapper(url):
-            logger.debug('Downloading URL %s' % strip_auth(url))
-
-            e = None
-
-            for username, password, cache in credentials.search(url):
-                new_url = _inject_credentials(url, username, password)
+        class DistributeAdaptor(AuthAdaptor):
+            orig = auth_func
+            def call(self, *args, **kwargs):
                 try:
-                    res = auth_func(new_url)
+                    res = self.orig(*args, **kwargs)
+                    return res
                 except Exception, e:
                     code = getattr(e, 'code', 'unknown')
                     if code in (401, 403):
-                        logger.critical('Could not authenticate %s. (%d)' % (url, code))
+                        raise AuthError
+                    elif code == 404:
+                        raise NotFoundError
                     else:
-                        logger.critical('Cannot fetch %s (%r)' % (url, code))
-                        logger.debug(e)
                         raise
-                else:
-                    credentials.success(url, username, password, cache)
-                    return res
 
-            raise e
-
-        return wrapper
+        return DistributeAdaptor(credentials)
     return decorator
 
 
 def inject_urlretrieve_credentials(credentials):
-    """Decorator factory returning a decorator that will keep injecting the
-    relevant `Credential` into a URL until the `Credential` is exhausted."""
-
     def decorator(auth_func):
-        def wrapper(url):
-            logger.debug('Downloading URL %s' % strip_auth(url))
-
-            e = None
-
-            for username, password, cache in credentials.search(url):
-                new_url = _inject_credentials(url, username, password)
+        class UrlRetrieveAdaptor(AuthAdaptor):
+            orig = auth_func
+            def call(self, *args, **kwargs):
                 try:
-                    res = auth_func(new_url)
+                    res = self.orig(*args, **kwargs)
+                    return res
                 except IOError, e:
                     code = e.args[1]
-
                     if code in (401, 403):
-                        logger.critical('Could not authenticate %s. (%d)' % (url, code))
-                    else:
-                        logger.critical('Cannot fetch %s (%r)' % (url, code))
-                        logger.debug(e)
-                        raise
-                else:
-                    credentials.success(url, username, password, cache)
-                    return res
+                        raise AuthError
+                    elif code == 404:
+                        raise NotFoundError
+                    else: raise
 
-            raise e
-
-        return wrapper
+        return UrlRetrieveAdaptor
     return decorator
 
 
