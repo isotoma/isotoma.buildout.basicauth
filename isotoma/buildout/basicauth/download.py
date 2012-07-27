@@ -11,6 +11,7 @@ import urlparse
 import base64
 import time
 from zc.buildout import UserError
+import StringIO
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ class AuthAdaptor(object):
         for username, password, cache in self.credentials.search(url):
             new_url = _inject_credentials(url, username, password)
             try:
-                res = self.attempt(url, *args, **kwargs)
+                res = self.attempt(new_url, *args, **kwargs)
 
             except AuthError, e:
                 logger.debug('Could not authenticate %s.' % (url, ))
@@ -102,10 +103,12 @@ class AuthAdaptor(object):
 def inject_credentials(credentials):
     def decorator(auth_func):
         class DistributeAdaptor(AuthAdaptor):
-            orig = auth_func
+            def not_found(self):
+                raise urllib2.HTTPError('', 404, "Not found", {}, StringIO.StringIO(""))
+
             def call(self, *args, **kwargs):
                 try:
-                    res = self.orig(*args, **kwargs)
+                    res = auth_func(*args, **kwargs)
                     return res
                 except Exception, e:
                     code = getattr(e, 'code', 'unknown')
@@ -123,10 +126,9 @@ def inject_credentials(credentials):
 def inject_urlretrieve_credentials(credentials):
     def decorator(auth_func):
         class UrlRetrieveAdaptor(AuthAdaptor):
-            orig = auth_func
             def call(self, *args, **kwargs):
                 try:
-                    res = self.orig(*args, **kwargs)
+                    res = auth_func(*args, **kwargs)
                     return res
                 except IOError, e:
                     code = e.args[1]
