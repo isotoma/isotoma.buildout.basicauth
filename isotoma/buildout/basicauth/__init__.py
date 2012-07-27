@@ -19,7 +19,7 @@ def install(buildout):
     buildout._raw.setdefault('basicauth', {})
     basicauth = buildout['basicauth']
     basicauth.setdefault('interactive', 'yes')
-    basicauth.setdefault('fetch-order', '\n'.join(("keyring", "lovely", "buildout", "pypi", "prompt")))
+    basicauth.setdefault('fetch-order', '\n'.join(("lovely", "buildout", "pypi", "prompt")))
 
     credentials = Credentials(
         buildout,

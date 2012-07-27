@@ -4,7 +4,7 @@ Changelog
 0.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Disable keyring backend until we can support it on python2.4
 
 
 0.0.0 (2012-07-27)
