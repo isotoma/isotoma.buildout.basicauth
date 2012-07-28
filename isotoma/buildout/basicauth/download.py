@@ -138,7 +138,7 @@ def inject_urlretrieve_credentials(credentials):
                         raise NotFoundError
                     else: raise
 
-        return UrlRetrieveAdaptor
+        return UrlRetrieveAdaptor(credentials)
     return decorator
 
 
