@@ -99,6 +99,17 @@ class AuthAdaptor(object):
         self.forbidden()
 
 
+class addinfourl(urllib2.addinfourl):
+
+    """ Support Python 2.4 and 2.6 """
+
+    def __init__(self, fp, headers, url, code=None):
+        try:
+            urllib2.addinfourl.__init__(self, fp, headers, url, code)
+        except TypeError:
+            urllib2.addinfourl.__init__(self, fp, headers, url)
+            self.code = code
+
 
 def inject_credentials(credentials):
     def decorator(auth_func):
@@ -110,7 +121,7 @@ def inject_credentials(credentials):
                 try:
                     r = auth_func(*args, **kwargs)
                     fp = StringIO.StringIO(r.read())
-                    resp = urllib2.addinfourl(fp, r.headers, r.url, r.code)
+                    resp = addinfourl(fp, r.headers, r.url, r.code)
                     return resp
 
                 except Exception, e:

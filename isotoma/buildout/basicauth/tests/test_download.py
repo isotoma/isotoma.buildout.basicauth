@@ -1,7 +1,6 @@
 
 from unittest2 import TestCase
 import mock
-from urllib2 import addinfourl
 import StringIO
 
 from isotoma.buildout.basicauth import download
@@ -58,7 +57,7 @@ class TestInjectionDecorator(TestCase):
         self.credentials.search.return_value = [(None, None, False)]
 
         self.auth_func = mock.Mock()
-        self.auth_func.return_value = addinfourl(StringIO.StringIO("SUCCESS"), {}, '', 200)
+        self.auth_func.return_value = download.addinfourl(StringIO.StringIO("SUCCESS"), {}, '', 200)
 
         self.func = download.inject_credentials(self.credentials)(self.auth_func)
 
@@ -67,7 +66,7 @@ class TestInjectionDecorator(TestCase):
         self.assertEquals(self.auth_func.call_count, 1)
 
     def test_passthru_2(self):
-        self.auth_func.side_effect=MockPopper(AuthException("boom"), addinfourl(StringIO.StringIO("SUCCESS"), {}, '', 200))
+        self.auth_func.side_effect=MockPopper(AuthException("boom"), download.addinfourl(StringIO.StringIO("SUCCESS"), {}, '', 200))
 
         self.credentials.search.return_value.append(("andy", "penguin55", True))
         self.assertEquals(self.func("http://www.isotoma.com/").read(), "SUCCESS")
