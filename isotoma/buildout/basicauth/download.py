@@ -108,8 +108,11 @@ def inject_credentials(credentials):
 
             def call(self, *args, **kwargs):
                 try:
-                    res = auth_func(*args, **kwargs)
-                    return res
+                    r = auth_func(*args, **kwargs)
+                    fp = StringIO.StringIO(r.read())
+                    resp = urllib2.addinfourl(fp, r.headers, r.url, r.code)
+                    return resp
+
                 except Exception, e:
                     code = getattr(e, 'code', 'unknown')
                     if code in (401, 403):
