@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.2 (unreleased)
+0.0.2 (2012-07-28)
 ------------------
 
 - Fix injection of credentials in urlretrieve
