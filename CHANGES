@@ -4,7 +4,7 @@ Changelog
 0.0.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Support usernames and passwords with '/' in them.
 
 
 0.0.4 (2012-07-28)

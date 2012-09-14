@@ -31,8 +31,8 @@ def _inject_credentials(url, username=None, password=None):
             auth_part, host_part = urllib2.splituser(netloc)
             if not auth_part: # If the URL doesn't have credentials in it already
                 netloc = '%s:%s@%s' % (
-                    urllib.quote(username),
-                    urllib.quote(password),
+                    urllib.quote(username, ''),
+                    urllib.quote(password, ''),
                     host_part,
                 )
                 url = urlparse.urlunparse((scheme,netloc,path,params,query,frag))
