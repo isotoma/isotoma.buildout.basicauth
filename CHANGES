@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.6 (unreleased)
+0.0.6 (2013-04-18)
 ------------------
 
 - Remove the hard-dependency on python-keyring
