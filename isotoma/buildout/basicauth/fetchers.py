@@ -4,7 +4,10 @@ import getpass
 import urlparse
 import ConfigParser
 
-import keyring
+try:
+    import keyring
+except ImportError:
+    keyring = None
 
 logger = logging.getLogger(__name__)
 
@@ -102,35 +105,6 @@ class PyPiRCFetcher(Fetcher):
         return config
 
 
-class KeyringFetcher(Fetcher):
-    """
-    Uses python-keyring to securely fetch passwords from your keyring, if they
-    exist. Degrades gracefully if the specified keyring doesn't exist.
-    """
-
-    name = "keyring"
-    SERVICE = 'isotoma.buildout.basicauth'
-    SEP = ':|'
-
-    def __init__(self, mgr):
-       super(KeyringFetcher, self).__init__(mgr)
-       backend = keyring.core.load_keyring(None, 'keyring.backend.%s' % "GnomeKeyring")
-       keyring.set_keyring(backend)
-
-    def success(self, uri, username, password):
-        pw = self.SEP.join((username, password))
-        try:
-            keyring.set_password(self.SERVICE, uri, pw)
-        except keyring.backend.PasswordSetError:
-            logger.warning('Could not set password in keyring')
-
-    def search(self, uri, realm):
-        pw = keyring.get_password(self.SERVICE, realm)
-        if pw:
-            username, password = pw.split(self.SEP)
-            yield username, password, True
-
-
 class LovelyFetcher(Fetcher):
 
     name = "lovely"
@@ -169,3 +143,33 @@ class BuildoutFetcher(Fetcher):
             if uri.startswith(repo_uri):
                 yield username, password, True
 
+
+if keyring:
+
+    class KeyringFetcher(Fetcher):
+        """
+        Uses python-keyring to securely fetch passwords from your keyring, if they
+        exist. Degrades gracefully if the specified keyring doesn't exist.
+        """
+
+        name = "keyring"
+        SERVICE = 'isotoma.buildout.basicauth'
+        SEP = ':|'
+
+        def __init__(self, mgr):
+           super(KeyringFetcher, self).__init__(mgr)
+           backend = keyring.core.load_keyring(None, 'keyring.backend.%s' % "GnomeKeyring")
+           keyring.set_keyring(backend)
+
+        def success(self, uri, username, password):
+            pw = self.SEP.join((username, password))
+            try:
+                keyring.set_password(self.SERVICE, uri, pw)
+            except keyring.backend.PasswordSetError:
+                logger.warning('Could not set password in keyring')
+
+        def search(self, uri, realm):
+            pw = keyring.get_password(self.SERVICE, realm)
+            if pw:
+                username, password = pw.split(self.SEP)
+                yield username, password, True
