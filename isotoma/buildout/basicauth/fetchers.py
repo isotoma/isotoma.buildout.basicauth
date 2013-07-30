@@ -86,7 +86,12 @@ class PyPiRCFetcher(Fetcher):
         if c.has_section("server-login"):
             idx.append("server-login")
 
-        if c.has_section("distutils"):
+        if c.has_option("basicauth", "credentials") and \
+                c.get("basicauth", "credentials").strip():
+            idx.extend(map(str.strip,
+                           c.get("basicauth", "credentials").strip().split()))
+
+        elif c.has_section("distutils"):
             for section in c.get("distutils", "index-servers").split("\n"):
                 section = section.strip()
                 if not section:
