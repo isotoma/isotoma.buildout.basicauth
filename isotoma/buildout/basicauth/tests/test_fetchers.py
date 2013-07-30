@@ -254,5 +254,33 @@ class TestPyPiRCFetcher(TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0], ("server", "password", True))
 
+    def test_basicauth_credentials_override_distutils_servers(self):
+        self.exists.return_value = True
+        self.open.side_effect = lambda x: StringIO.StringIO(
+            "[distutils]\n"
+            "index-servers =\n"
+            "    apple\n"
+            "    orange\n"
+            "    banana\n"
+            "\n"
+            "[basicauth]\n"
+            "credentials =\n"
+            "    orange\n"
+            "\n"
+            "[orange]\n"
+            "repository:http://orange.local/\n"
+            "username = orange\n"
+            "password = password\n"
+            "\n"
+            "[apple]\n"
+            "repository = http://apple.local/\n"
+            "username = apple\n"
+            "password = password\n"
+            )
 
+        matches = self.search("http://orange.local/simple/a/")
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0], ("orange", "password", True))
 
+        matches = self.search("http://apple.local/simple/a/")
+        self.assertEqual(len(matches), 0)
